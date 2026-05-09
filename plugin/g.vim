@@ -63,14 +63,31 @@ fun! s:goo(ft, ...)
     return
   endif
 
-  " 1. Fix 'Previous Selection' bug: Only grab selection if cursor is at the marks.
-  " This ensures 'sel' is empty unless you just came from a visual selection.
   let sel = ''
-  if getpos('.') == getpos("'<") || getpos('.') == getpos("'>")
+  let m_start = getpos("'<")
+  let m_end = getpos("'>")
+  let cur = getpos('.')
+  let mode = visualmode()
+
+  let is_fresh = (mode ==# 'v' && (cur == m_start || cur == m_end)) ||
+        \ (mode ==# 'V' && (cur[1] == m_start[1] || cur[1] == m_end[1])) ||
+        \ (mode ==# "\<C-V>" && (cur[1] == m_start[1] || cur[1] == m_end[1]))
+
+  if is_fresh
     let lines = getline("'<", "'>")
     if !empty(lines)
-      let lines[-1] = lines[-1][:getpos("'>")[2] - 1]
-      let lines[0] = lines[0][getpos("'<")[2] - 1:]
+      if mode ==# 'v'
+        let lines[-1] = lines[-1][:m_end[2] - 1]
+        let lines[0] = lines[0][m_start[2] - 1:]
+      elseif mode ==# "\<C-V>"
+        let c1 = m_start[2] - 1
+        let c2 = m_end[2] - 1
+        let s_col = c1 < c2 ? c1 : c2
+        let e_col = c1 < c2 ? c2 : c1
+        for i in range(len(lines))
+          let lines[i] = lines[i][s_col : e_col]
+        endfor
+      endif
       let sel = join(lines, ' ')
     endif
   endif
@@ -79,25 +96,19 @@ fun! s:goo(ft, ...)
     let words = [a:ft, empty(sel) ? expand("<cword>") : sel]
   else
     let query = join(a:000, " ")
-    let quotes = len(substitute(query, '[^"]', '', 'g'))
-    " 2. If you typed a query (e.g., :Google test), we use that instead of the stale selection.
     let words = [a:ft, query, (empty(sel) ? '' : sel)]
-
-    if quotes > 0 && quotes % 2 != 0
-      call add(words, '"')
-    endif
     call filter(words, 'len(v:val)')
   endif
 
+  " Clean the query and REMOVE manual quote-escaping.
+  " shellescape() and sys.argv will handle the quotes safely.
   let query = substitute(join(words, " "), '^\s*\(.\{-}\)\s*$', '\1', '')
-  let query = substitute(query, '"', '\\"', 'g')
 
   if has('win32')
     silent! execute "! " . g:vim_g_open_command . " \"\" \"" . g:vim_g_query_url  . query . "\""
   else
-    " 3. Fix 'Nothing Happens': Using shellescape() to stop the shell from
-    " breaking on special characters like '$' in your code snippets.
-    let safe_query = shellescape(query)
+    " escape "!"
+    let safe_query = shellescape(query, 1)
     silent! execute "! goo_query=$(" . g:vim_g_python_command .
           \" -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' " . safe_query . ") && " .
           \g:vim_g_open_command . ' "' . g:vim_g_query_url . "$goo_query" . '" > /dev/null 2>&1 &'
