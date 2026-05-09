@@ -51,7 +51,7 @@ if !exists("g:vim_g_command")
 endif
 
 if !exists("g:vim_g_f_command")
-  let g:vim_g_f_command = g:vim_g_command . "f"   
+  let g:vim_g_f_command = g:vim_g_command . "f"
 endif
 
 execute "command! -nargs=* -range ". g:vim_g_command  ." :call s:goo('', <f-args>)"
@@ -92,8 +92,8 @@ fun! s:goo(ft, ...)
     silent! execute "! " . g:vim_g_open_command . " \"\" \"" . g:vim_g_query_url  . query . "\""
   else
     silent! execute "! goo_query=\"$(" . g:vim_g_python_command .
-      \" -c 'import urllib.parse; print(urllib.parse.quote(\"". query."\"))')\" && " .
-      \g:vim_g_open_command . ' "' . g:vim_g_query_url . "$goo_query" . '" > /dev/null 2>&1 &'
+          \" -c 'import urllib.parse; print(urllib.parse.quote(\"". query."\"))')\" && " .
+          \g:vim_g_open_command . ' "' . g:vim_g_query_url . "$goo_query" . '" > /dev/null 2>&1 &'
   endif
   redraw!
 endfun
