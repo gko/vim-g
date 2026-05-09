@@ -63,24 +63,29 @@ fun! s:goo(ft, ...)
     return
   endif
 
-  let lines = getline("'<", "'>")
-  if !empty(lines)
-    let lines[-1] = lines[-1][:getpos("'>")[2] - 1]
-    let lines[0] = lines[0][getpos("'<")[2] - 1:]
+  " 1. Fix 'Previous Selection' bug: Only grab selection if cursor is at the marks.
+  " This ensures 'sel' is empty unless you just came from a visual selection.
+  let sel = ''
+  if getpos('.') == getpos("'<") || getpos('.') == getpos("'>")
+    let lines = getline("'<", "'>")
+    if !empty(lines)
+      let lines[-1] = lines[-1][:getpos("'>")[2] - 1]
+      let lines[0] = lines[0][getpos("'<")[2] - 1:]
+      let sel = join(lines, ' ')
+    endif
   endif
-  let sel = join(lines, ' ')
 
   if a:0 == 0
     let words = [a:ft, empty(sel) ? expand("<cword>") : sel]
   else
     let query = join(a:000, " ")
     let quotes = len(substitute(query, '[^"]', '', 'g'))
-    let words = [a:ft, query, sel]
+    " 2. If you typed a query (e.g., :Google test), we use that instead of the stale selection.
+    let words = [a:ft, query, (empty(sel) ? '' : sel)]
 
     if quotes > 0 && quotes % 2 != 0
       call add(words, '"')
     endif
-
     call filter(words, 'len(v:val)')
   endif
 
@@ -88,11 +93,13 @@ fun! s:goo(ft, ...)
   let query = substitute(query, '"', '\\"', 'g')
 
   if has('win32')
-    " Target command: start "" "<url>"
     silent! execute "! " . g:vim_g_open_command . " \"\" \"" . g:vim_g_query_url  . query . "\""
   else
-    silent! execute "! goo_query=\"$(" . g:vim_g_python_command .
-          \" -c 'import urllib.parse; print(urllib.parse.quote(\"". query."\"))')\" && " .
+    " 3. Fix 'Nothing Happens': Using shellescape() to stop the shell from
+    " breaking on special characters like '$' in your code snippets.
+    let safe_query = shellescape(query)
+    silent! execute "! goo_query=$(" . g:vim_g_python_command .
+          \" -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' " . safe_query . ") && " .
           \g:vim_g_open_command . ' "' . g:vim_g_query_url . "$goo_query" . '" > /dev/null 2>&1 &'
   endif
   redraw!
