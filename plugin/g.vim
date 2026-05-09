@@ -63,7 +63,12 @@ fun! s:goo(ft, ...)
     return
   endif
 
-  let sel = getpos('.') == getpos("'<") ? getline("'<")[getpos("'<")[2] - 1:getpos("'>")[2] - 1] : ''
+  let lines = getline("'<", "'>")
+  if !empty(lines)
+    let lines[-1] = lines[-1][:getpos("'>")[2] - 1]
+    let lines[0] = lines[0][getpos("'<")[2] - 1:]
+  endif
+  let sel = join(lines, ' ')
 
   if a:0 == 0
     let words = [a:ft, empty(sel) ? expand("<cword>") : sel]
