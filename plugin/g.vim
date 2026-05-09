@@ -28,7 +28,13 @@ if !exists("g:vim_g_open_command")
   elseif substitute(system('uname'), "\n", "", "") == 'Darwin'
     let g:vim_g_open_command = "open"
   else
-    let g:vim_g_open_command = "xdg-open"
+    if executable("xdg-open")
+      let g:vim_g_open_command = "xdg-open"
+    elseif executable("gio")
+      let g:vim_g_open_command = "gio open"
+    else
+      let g:vim_g_open_command = ""
+    endif
   endif
 endif
 
@@ -37,7 +43,7 @@ if !exists("g:vim_g_python_command")
 endif
 
 if !exists("g:vim_g_query_url")
-  let g:vim_g_query_url = "http://google.com/search?q="
+  let g:vim_g_query_url = "https://google.com/search?q="
 endif
 
 if !exists("g:vim_g_command")
@@ -52,6 +58,11 @@ execute "command! -nargs=* -range ". g:vim_g_command  ." :call s:goo('', <f-args
 execute "command! -nargs=* -range ". g:vim_g_f_command ." :call s:goo(&ft, <f-args>)"
 
 fun! s:goo(ft, ...)
+  if empty(g:vim_g_open_command)
+    echohl WarningMsg | echo "vim-g: No opener found. Set g:vim_g_open_command manually." | echohl None
+    return
+  endif
+
   let sel = getpos('.') == getpos("'<") ? getline("'<")[getpos("'<")[2] - 1:getpos("'>")[2] - 1] : ''
 
   if a:0 == 0
